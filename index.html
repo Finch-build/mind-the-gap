@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Mind the Gap — the urinal etiquette game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --tile:#cfe3dd;
+    --grout:#b4ccc5;
+    --ink:#14201e;
+    --ink-soft:#3c514c;
+    --ceramic:#f7faf9;
+    --ceramic-edge:#c4d6cf;
+    --basin:#e6efec;
+    --sign:#f2c230;
+    --go:#3fa66a;
+    --stop:#d64c3c;
+    --panel:#e9f1ee;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:"Barlow Semi Condensed",system-ui,sans-serif;
+    color:var(--ink);
+    background:var(--ink);
+    display:flex;align-items:center;justify-content:center;
+    min-height:100dvh;padding:14px;
+    overflow:hidden;
+  }
+  .cabinet{
+    width:min(560px,100%);
+    display:flex;flex-direction:column;
+    min-height:min(700px, calc(100dvh - 28px));
+    background:var(--tile);
+    border:6px solid var(--ink);
+    border-radius:18px;
+    box-shadow:0 24px 60px rgba(0,0,0,.5);
+    overflow:hidden;
+    position:relative;
+    /* ceramic wall tiles */
+    background-image:
+      linear-gradient(var(--grout) 2px,transparent 2px),
+      linear-gradient(90deg,var(--grout) 2px,transparent 2px);
+    background-size:38px 38px;
+    background-position:center top;
+  }
+
+  /* ---- top signage bar ---- */
+  .hud{
+    display:flex;align-items:stretch;
+    background:var(--ink);color:var(--tile);
+  }
+  .hud .cell{
+    flex:1;padding:9px 12px;text-align:center;
+    border-right:2px solid rgba(255,255,255,.12);
+  }
+  .hud .cell:last-child{border-right:0;}
+  .hud .k{
+    font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+    color:#8aa39c;font-weight:700;
+  }
+  .hud .v{
+    font-family:"Archivo Black",sans-serif;font-size:22px;line-height:1;margin-top:3px;
+    font-variant-numeric:tabular-nums;
+  }
+  .hud .v.level{color:var(--sign);}
+  .sound{
+    background:var(--ink);color:#8aa39c;border:0;border-left:2px solid rgba(255,255,255,.12);
+    font-family:"Barlow Semi Condensed";font-weight:700;font-size:12px;letter-spacing:.1em;
+    cursor:pointer;padding:0 12px;
+  }
+  .sound:hover{color:var(--tile);}
+
+  /* ---- timer ---- */
+  .timer{height:10px;background:rgba(20,32,30,.18);position:relative;}
+  .timer .fill{height:100%;width:100%;background:var(--go);}
+  .timer.paused .fill{transition:none;}
+
+  /* ---- play area ---- */
+  .stage{position:relative;padding:26px 16px 20px;
+    flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;}
+  .prompt{
+    text-align:center;font-weight:700;font-size:15px;letter-spacing:.02em;
+    color:var(--ink-soft);text-transform:uppercase;margin:0 0 20px;min-height:18px;
+  }
+  .prompt b{color:var(--ink);}
+
+  .row{
+    display:flex;justify-content:center;align-items:flex-end;
+    gap:0;min-height:150px;
+  }
+  .bay{
+    position:relative;
+    width:clamp(46px,13vw,80px);
+    display:flex;align-items:flex-end;justify-content:center;
+    padding-bottom:6px;
+  }
+  /* privacy divider jutting from the wall between bays */
+  .bay + .bay::before{
+    content:"";position:absolute;left:0;bottom:2px;height:104px;width:9px;
+    transform:translateX(-50%);
+    background:linear-gradient(180deg,#fdfefe,#d7e5e0);
+    border:2px solid var(--ceramic-edge);border-radius:6px;
+    box-shadow:2px 3px 6px rgba(20,32,30,.18);
+  }
+  .fixture{width:78%;display:block;filter:drop-shadow(0 4px 5px rgba(20,32,30,.18));}
+  .fixture .ceramic{fill:var(--ceramic);stroke:var(--ceramic-edge);stroke-width:3;}
+  .fixture .basin{fill:var(--basin);}
+  .fixture .drain{fill:#9db4ad;}
+
+  .figure{
+    position:absolute;bottom:4px;left:50%;transform:translateX(-50%);
+    width:44%;height:auto;z-index:3;
+  }
+  .figure svg{width:100%;display:block;fill:var(--ink);
+    filter:drop-shadow(0 3px 3px rgba(0,0,0,.25));}
+
+  /* open (clickable) urinal button */
+  .open{
+    cursor:pointer;background:none;border:0;padding:0;margin:0;
+    width:100%;display:flex;justify-content:center;align-items:flex-end;
+  }
+  .open .fixture{transition:transform .12s ease, filter .12s ease;}
+  .open .tag{
+    position:absolute;top:8px;left:50%;transform:translateX(-50%);
+    width:20px;height:20px;border-radius:50%;
+    background:var(--sign);color:var(--ink);
+    font-family:"Archivo Black";font-size:12px;line-height:20px;text-align:center;
+    box-shadow:0 2px 4px rgba(20,32,30,.3);opacity:.9;z-index:4;
+  }
+  @media (hover:hover){
+    .open:hover .fixture{transform:translateY(-6px) scale(1.03);
+      filter:drop-shadow(0 8px 8px rgba(20,32,30,.28));}
+  }
+  .open:focus-visible{outline:none;}
+  .open:focus-visible .fixture{transform:translateY(-6px);
+    filter:drop-shadow(0 0 0 3px var(--sign));}
+
+  /* result reveal states */
+  .bay.correct .fixture .ceramic{fill:#dff3e7;stroke:var(--go);}
+  .bay.correct::after{content:"✓";position:absolute;top:6px;left:50%;
+    transform:translateX(-50%);width:22px;height:22px;line-height:22px;text-align:center;
+    background:var(--go);color:#fff;border-radius:50%;font-weight:700;z-index:5;}
+  .bay.wrong .fixture .ceramic{fill:#f7dcd7;stroke:var(--stop);}
+  .bay.wrong::after{content:"✕";position:absolute;top:6px;left:50%;
+    transform:translateX(-50%);width:22px;height:22px;line-height:22px;text-align:center;
+    background:var(--stop);color:#fff;border-radius:50%;font-weight:700;z-index:5;}
+
+  /* wait button */
+  .waitwrap{display:flex;justify-content:center;margin-top:22px;}
+  .wait{
+    font-family:"Archivo Black",sans-serif;font-size:16px;letter-spacing:.04em;
+    color:var(--ink);background:var(--sign);
+    border:3px solid var(--ink);border-radius:12px;
+    padding:12px 26px;cursor:pointer;
+    box-shadow:0 4px 0 var(--ink);transition:transform .08s, box-shadow .08s;
+  }
+  .wait:active{transform:translateY(4px);box-shadow:0 0 0 var(--ink);}
+  .wait .sub{display:block;font-family:"Barlow Semi Condensed";font-weight:600;
+    font-size:11px;letter-spacing:.14em;color:var(--ink-soft);margin-top:2px;}
+  .wait.correct{background:var(--go);border-color:#1c5c39;box-shadow:0 4px 0 #1c5c39;color:#fff;}
+  .wait.wrong{background:var(--stop);border-color:#8a2f24;box-shadow:0 4px 0 #8a2f24;color:#fff;}
+  .wait:focus-visible{outline:3px solid var(--ink);outline-offset:3px;}
+
+  /* floor line */
+  .floor{height:16px;background:linear-gradient(var(--grout),#9db4ad);
+    border-top:3px solid var(--ink);}
+
+  /* toast */
+  .toast{
+    position:absolute;top:40%;left:50%;transform:translate(-50%,-50%) scale(.6);
+    font-family:"Archivo Black";font-size:40px;color:var(--go);
+    opacity:0;pointer-events:none;text-shadow:0 3px 0 rgba(20,32,30,.25);
+  }
+  .toast.show{animation:pop .5s ease forwards;}
+  @keyframes pop{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(.6);}
+    30%{opacity:1;transform:translate(-50%,-60%) scale(1.05);}
+    100%{opacity:0;transform:translate(-50%,-85%) scale(1);}
+  }
+
+  /* ---- overlays ---- */
+  .screen{
+    position:absolute;inset:0;background:rgba(20,32,30,.94);color:var(--tile);
+    display:flex;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:22px;z-index:10;
+  }
+  .sheet{
+    margin:auto;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;gap:6px;width:100%;max-width:360px;
+  }
+  .screen.hidden{display:none;}
+  .kicker{font-weight:700;letter-spacing:.32em;text-transform:uppercase;
+    font-size:12px;color:var(--sign);}
+  .title{font-family:"Archivo Black";font-size:clamp(38px,11vw,60px);line-height:.9;
+    margin:4px 0 2px;color:var(--tile);}
+  .title .gap{color:var(--sign);}
+  .tag2{font-weight:600;font-size:15px;color:#a9c1ba;margin-bottom:14px;max-width:34ch;}
+  .rules{list-style:none;padding:0;margin:0 0 20px;text-align:left;max-width:330px;width:100%;}
+  .rules li{display:flex;gap:12px;align-items:flex-start;padding:7px 0;
+    border-bottom:1px solid rgba(255,255,255,.1);font-size:15px;font-weight:600;color:#dbe8e3;}
+  .rules li:last-child{border-bottom:0;}
+  .rules .n{flex:none;width:26px;height:26px;border-radius:50%;background:var(--sign);
+    color:var(--ink);font-family:"Archivo Black";font-size:13px;line-height:26px;text-align:center;}
+  .btn{
+    font-family:"Archivo Black";font-size:20px;letter-spacing:.03em;color:var(--ink);
+    background:var(--sign);border:0;border-radius:12px;padding:15px 40px;cursor:pointer;
+    box-shadow:0 5px 0 #b9922a;transition:transform .08s,box-shadow .08s;margin-top:6px;
+  }
+  .btn:active{transform:translateY(5px);box-shadow:0 0 0 #b9922a;}
+  .btn:focus-visible{outline:3px solid var(--tile);outline-offset:3px;}
+  .final{display:flex;gap:34px;margin:10px 0 18px;}
+  .final .k{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#8aa39c;font-weight:700;}
+  .final .v{font-family:"Archivo Black";font-size:40px;line-height:1;}
+  .final .v.best{color:var(--sign);}
+  .reason{font-weight:700;font-size:17px;color:#f0b9b1;margin-bottom:2px;}
+  .lesson{font-size:14px;font-weight:600;color:#a9c1ba;max-width:32ch;min-height:34px;}
+  .newbest{color:var(--sign);font-weight:700;letter-spacing:.14em;font-size:12px;
+    text-transform:uppercase;height:16px;}
+
+  @media (max-height:640px), (max-width:360px){
+    .cabinet{min-height:calc(100dvh - 20px);}
+    .title{font-size:clamp(30px,9vw,44px);}
+    .tag2{font-size:13px;margin-bottom:8px;}
+    .rules li{font-size:13px;padding:5px 0;}
+    .rules .n{width:22px;height:22px;line-height:22px;font-size:12px;}
+    .btn{padding:12px 32px;font-size:18px;}
+    .final .v{font-size:32px;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important;transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="cabinet" id="cabinet">
+
+  <div class="hud">
+    <div class="cell"><div class="k">Score</div><div class="v" id="score">0</div></div>
+    <div class="cell"><div class="k">Level</div><div class="v level" id="level">1</div></div>
+    <div class="cell"><div class="k">Best</div><div class="v" id="best">0</div></div>
+    <button class="sound" id="soundBtn" aria-label="Toggle sound">SND ON</button>
+  </div>
+
+  <div class="timer paused" id="timer"><div class="fill" id="timerFill"></div></div>
+
+  <div class="stage">
+    <p class="prompt" id="prompt">Where do you step up?</p>
+    <div class="row" id="row" role="group" aria-label="Urinals"></div>
+    <div class="waitwrap">
+      <button class="wait" id="waitBtn">WAIT<span class="sub">use a stall</span></button>
+    </div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <div class="floor"></div>
+
+  <!-- START -->
+  <div class="screen" id="startScreen">
+    <div class="sheet">
+    <div class="kicker">Reflex etiquette</div>
+    <h1 class="title">MIND<br>THE <span class="gap">GAP</span></h1>
+    <p class="tag2">A busy men's room. Read it, pick the polite spot, do it before the clock runs dry.</p>
+    <ul class="rules">
+      <li><span class="n">1</span><span>Take the open urinal with the <b>most space</b> from anyone.</span></li>
+      <li><span class="n">2</span><span>Empty room? Take an <b>end</b>.</span></li>
+      <li><span class="n">3</span><span>Every spot boxed in by neighbours? Tap <b>WAIT</b>.</span></li>
+      <li><span class="n">4</span><span>Hesitate and you're out. <b>Go fast.</b></span></li>
+    </ul>
+    <button class="btn" id="startBtn">Step up</button>
+    </div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div class="screen hidden" id="overScreen">
+    <div class="sheet">
+    <div class="kicker">Out of order</div>
+    <p class="reason" id="reason">Too slow.</p>
+    <div class="final">
+      <div><div class="k">Score</div><div class="v" id="finalScore">0</div></div>
+      <div><div class="k">Best</div><div class="v best" id="finalBest">0</div></div>
+    </div>
+    <div class="newbest" id="newBest"></div>
+    <p class="lesson" id="lesson"></p>
+    <button class="btn" id="againBtn">Go again</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const rowEl=$("row"), promptEl=$("prompt"), waitBtn=$("waitBtn"),
+        timerEl=$("timer"), fillEl=$("timerFill"), toastEl=$("toast"),
+        scoreEl=$("score"), levelEl=$("level"), bestEl=$("best");
+
+  // ---- SVG builders ----
+  function urinalSVG(){
+    return `<svg class="fixture" viewBox="0 0 100 150" aria-hidden="true">
+      <path class="ceramic" d="M18 6 Q50 -3 82 6 Q91 12 88 60 Q85 120 50 144 Q15 120 12 60 Q9 12 18 6 Z"/>
+      <path class="basin" d="M31 20 Q50 12 69 20 Q75 42 65 96 Q57 121 50 127 Q43 121 35 96 Q25 42 31 20 Z"/>
+      <ellipse class="drain" cx="50" cy="90" rx="7" ry="5"/>
+    </svg>`;
+  }
+  function figureSVG(){
+    return `<div class="figure"><svg viewBox="0 0 60 150" aria-hidden="true">
+      <circle cx="30" cy="22" r="13"/>
+      <path d="M30 37 Q47 39 49 80 L41 80 L41 148 L34 148 L34 97 L26 97 L26 148 L19 148 L19 80 L11 80 Q13 39 30 37 Z"/>
+    </svg></div>`;
+  }
+
+  // ---- audio (tiny WebAudio blips) ----
+  let soundOn=true, actx=null;
+  function beep(freq,dur,type){
+    if(!soundOn) return;
+    try{
+      actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+      const o=actx.createOscillator(), g=actx.createGain();
+      o.type=type||"square"; o.frequency.value=freq;
+      o.connect(g); g.connect(actx.destination);
+      g.gain.setValueAtTime(.0001,actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(.14,actx.currentTime+.01);
+      g.gain.exponentialRampToValueAtTime(.0001,actx.currentTime+dur);
+      o.start(); o.stop(actx.currentTime+dur);
+    }catch(e){}
+  }
+  const sGood=()=>{beep(660,.09);setTimeout(()=>beep(990,.11),70);};
+  const sBad =()=>{beep(160,.28,"sawtooth");};
+
+  // ---- game state ----
+  let score=0, level=1, best=0;
+  let occupied=[], n=0, correctSet=[], waitCorrect=false;
+  let roundActive=false, roundStart=0, roundTime=0, rafId=0;
+
+  function levelTime(l){ return Math.max(1500, 4200 - (l-1)*170); }
+  function levelUrinals(l){ return Math.min(7, 4 + Math.floor((l-1)/3)); }
+
+  // ---- etiquette engine: define the single correct move ----
+  function computeCorrect(occ){
+    const len=occ.length;
+    const empties=[]; for(let i=0;i<len;i++) if(!occ[i]) empties.push(i);
+    const anyone = occ.some(Boolean);
+    if(!anyone){
+      // empty room -> take an end
+      return {set: len===1?[0]:[0,len-1], wait:false, kind:"empty"};
+    }
+    // distance from each empty spot to nearest occupied
+    let maxD=-1; const dist={};
+    for(const i of empties){
+      let d=Infinity;
+      for(let j=0;j<len;j++) if(occ[j]) d=Math.min(d,Math.abs(i-j));
+      dist[i]=d; if(d>maxD) maxD=d;
+    }
+    if(maxD>=2){
+      return {set:empties.filter(i=>dist[i]===maxD), wait:false, kind:"buffer"};
+    }
+    // best you can do is stand right next to someone -> wait
+    return {set:[], wait:true, kind:"wait"};
+  }
+
+  function generate(l){
+    n=levelUrinals(l);
+    // ~12% empty room, otherwise random occupancy with guardrails
+    for(let tries=0; tries<200; tries++){
+      let occ=new Array(n).fill(false);
+      if(Math.random()<0.12){
+        // empty room
+      }else{
+        const p=0.30+Math.min(0.16,l*0.012);
+        for(let i=0;i<n;i++) occ[i]=Math.random()<p;
+        const filled=occ.filter(Boolean).length;
+        if(filled===0) occ[Math.floor(Math.random()*n)]=true; // ensure someone
+        if(occ.every(Boolean)) occ[Math.floor(Math.random()*n)]=false; // ensure a gap
+      }
+      const c=computeCorrect(occ);
+      // avoid two identical boards back to back is unnecessary; accept
+      occupied=occ; correctSet=c.set; waitCorrect=c.wait; window._kind=c.kind;
+      return;
+    }
+  }
+
+  function render(){
+    rowEl.innerHTML="";
+    let openNo=0;
+    occupied.forEach((occ,i)=>{
+      const bay=document.createElement("div");
+      bay.className="bay"; bay.dataset.i=i;
+      if(occ){
+        bay.innerHTML=urinalSVG()+figureSVG();
+        bay.setAttribute("aria-label","Occupied urinal");
+      }else{
+        openNo++;
+        const b=document.createElement("button");
+        b.className="open"; b.type="button";
+        b.setAttribute("aria-label","Open urinal "+openNo);
+        b.dataset.key=String(openNo);
+        b.innerHTML=urinalSVG()+`<span class="tag">${openNo}</span>`;
+        b.addEventListener("click",()=>pickUrinal(i));
+        bay.appendChild(b);
+      }
+      rowEl.appendChild(bay);
+    });
+    waitBtn.classList.remove("correct","wrong");
+  }
+
+  function setPrompt(){
+    const people=occupied.filter(Boolean).length;
+    if(people===0) promptEl.innerHTML="Nobody here — <b>where do you go?</b>";
+    else if(people===1) promptEl.innerHTML="One guy in. <b>Pick your spot.</b>";
+    else promptEl.innerHTML=`${people} in. <b>Pick your spot.</b>`;
+  }
+
+  function startRound(){
+    generate(level);
+    render(); setPrompt();
+    scoreEl.textContent=score; levelEl.textContent=level; bestEl.textContent=best;
+    roundTime=levelTime(level);
+    fillEl.style.transition="none";
+    fillEl.style.width="100%";
+    fillEl.style.background="var(--go)";
+    // force reflow then begin depletion loop
+    void fillEl.offsetWidth;
+    roundStart=performance.now(); roundActive=true;
+    timerEl.classList.remove("paused");
+    cancelAnimationFrame(rafId); rafId=requestAnimationFrame(tick);
+  }
+
+  function tick(now){
+    if(!roundActive) return;
+    const remain=Math.max(0, roundTime-(now-roundStart));
+    const pct=remain/roundTime;
+    fillEl.style.transition="none";
+    fillEl.style.width=(pct*100)+"%";
+    fillEl.style.background = pct>0.5 ? "var(--go)" : pct>0.22 ? "var(--sign)" : "var(--stop)";
+    if(remain<=0){ gameOver("Too slow."); return; }
+    rafId=requestAnimationFrame(tick);
+  }
+
+  function remainNow(){ return Math.max(0, roundTime-(performance.now()-roundStart)); }
+
+  function pickUrinal(i){
+    if(!roundActive) return;
+    if(!waitCorrect && correctSet.includes(i)) succeed();
+    else fail(i);
+  }
+  function pickWait(){
+    if(!roundActive) return;
+    if(waitCorrect) succeed();
+    else fail(-1);
+  }
+
+  function succeed(){
+    roundActive=false; cancelAnimationFrame(rafId); timerEl.classList.add("paused");
+    const remain=remainNow();
+    const pts=100+Math.round(remain/10);
+    score+=pts;
+    toast("+"+pts, true); sGood();
+    level++;
+    setTimeout(startRound, 430);
+  }
+
+  function fail(chosen){
+    roundActive=false; cancelAnimationFrame(rafId); timerEl.classList.add("paused");
+    sBad();
+    revealAnswer(chosen);
+    setTimeout(()=>gameOver(chosen===-1?"Waiting wasn't the move.":"Bad choice."), 620);
+  }
+
+  function revealAnswer(chosen){
+    // mark chosen wrong
+    if(chosen>=0){
+      const b=rowEl.querySelector('.bay[data-i="'+chosen+'"]');
+      if(b) b.classList.add("wrong");
+    }else{
+      waitBtn.classList.add("wrong");
+    }
+    // mark the correct move green
+    if(waitCorrect){ waitBtn.classList.add("correct"); }
+    else correctSet.forEach(i=>{
+      const b=rowEl.querySelector('.bay[data-i="'+i+'"]');
+      if(b) b.classList.add("correct");
+    });
+  }
+
+  function toast(txt,good){
+    toastEl.textContent=txt;
+    toastEl.style.color=good?"var(--go)":"var(--stop)";
+    toastEl.classList.remove("show"); void toastEl.offsetWidth;
+    toastEl.classList.add("show");
+  }
+
+  const LESSONS={
+    empty:"Empty room? Claim an end urinal and keep max distance open.",
+    buffer:"Always leave a buffer — the open spot furthest from others.",
+    wait:"When every spot sits right beside someone, waiting is the polite call."
+  };
+
+  function gameOver(reason){
+    roundActive=false; cancelAnimationFrame(rafId);
+    const isBest = score>best;
+    if(isBest) best=score;
+    $("reason").textContent=reason;
+    $("finalScore").textContent=score;
+    $("finalBest").textContent=best;
+    $("newBest").textContent=isBest && score>0 ? "New best!" : "";
+    $("lesson").textContent = LESSONS[window._kind] || "";
+    $("overScreen").classList.remove("hidden");
+  }
+
+  function startGame(){
+    score=0; level=1;
+    $("startScreen").classList.add("hidden");
+    $("overScreen").classList.add("hidden");
+    startRound();
+  }
+
+  // ---- input ----
+  waitBtn.addEventListener("click", pickWait);
+  $("startBtn").addEventListener("click", ()=>{ try{if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){} startGame(); });
+  $("againBtn").addEventListener("click", startGame);
+  $("soundBtn").addEventListener("click", function(){
+    soundOn=!soundOn; this.textContent = soundOn?"SND ON":"SND OFF";
+  });
+
+  // keyboard: 1-7 pick nth OPEN urinal, W or space = wait
+  document.addEventListener("keydown",(e)=>{
+    if(!roundActive) return;
+    if(e.key>="1" && e.key<="7"){
+      const btn=rowEl.querySelector('.open[data-key="'+e.key+'"]');
+      if(btn){ e.preventDefault(); btn.click(); }
+    }else if(e.key==="w"||e.key==="W"||e.key===" "){
+      e.preventDefault(); pickWait();
+    }
+  });
+})();
+</script>
+</body>
+</html>
