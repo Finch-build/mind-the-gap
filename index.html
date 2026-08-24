@@ -335,7 +335,15 @@
   const sBad =()=>{beep(160,.28,"sawtooth");};
 
   // ---- game state ----
-  let score=0, level=1, best=0;
+  const BEST_KEY="mindTheGap.bestScore";
+  function loadBest(){
+    try{ return parseInt(localStorage.getItem(BEST_KEY),10) || 0; }catch(e){ return 0; }
+  }
+  function saveBest(v){
+    try{ localStorage.setItem(BEST_KEY, String(v)); }catch(e){}
+  }
+  let score=0, level=1, best=loadBest();
+  bestEl.textContent=best;
   let occupied=[], n=0, correctSet=[], waitCorrect=false;
   let roundActive=false, roundStart=0, roundTime=0, rafId=0;
 
@@ -505,7 +513,7 @@
   function gameOver(reason){
     roundActive=false; cancelAnimationFrame(rafId);
     const isBest = score>best;
-    if(isBest) best=score;
+    if(isBest){ best=score; saveBest(best); }
     $("reason").textContent=reason;
     $("finalScore").textContent=score;
     $("finalBest").textContent=best;
